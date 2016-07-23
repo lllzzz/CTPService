@@ -53,61 +53,6 @@ string Lib::itos(int num)
     return string(s);
 }
 
-void Lib::sysErrLog(string logPath, string logName, CThostFtdcRspInfoField *info, int id, int isLast)
-{
-    if (info && info->ErrorID != 0) {
-        ofstream sysLogger;
-        logPath = logPath + getDate("%Y%m%d") + ".log";
-        sysLogger.open(logPath.c_str(), ios::app);
-
-        sysLogger << getDate("%Y%m%d-%H:%M:%S", true) << "|";
-        sysLogger << "[ERROR]" << "|";
-        sysLogger << logName << "|";
-        sysLogger << "ErrCode" << "|" << info->ErrorID << "|";
-        sysLogger << "ErrMsg" << "|" << info->ErrorMsg << "|";
-        sysLogger << "RequestID" << "|" << id << "|";
-        sysLogger << "IsLast" << "|" << isLast << endl;
-
-        sysLogger.close();
-    }
-}
-
-void Lib::sysReqLog(string logPath, string logName, int code)
-{
-    if (code == 0) return;
-    ofstream sysLogger;
-    logPath = logPath + getDate("%Y%m%d") + ".log";
-    sysLogger.open(logPath.c_str(), ios::app);
-
-    sysLogger << getDate("%Y%m%d-%H:%M:%S", true) << "|";
-    sysLogger << "[REQUEST]" << "|";
-    sysLogger << logName << "|";
-    sysLogger << "Code" << "|" << code << endl;
-
-    sysLogger.close();
-}
-
-
-void Lib::initInfoLogHandle(string logPath, ofstream & infoHandle, string iID)
-{
-    if (iID.length() > 0) {
-        logPath = logPath + getDate("%Y%m%d") + "_" + iID + ".log";
-    } else {
-        logPath = logPath + getDate("%Y%m%d") + ".log";
-    }
-    infoHandle.open(logPath.c_str(), ios::app);
-    infoHandle << getDate("%Y%m%d-%H:%M:%S", true) << "|";
-    infoHandle << "[INFO]" << "|";
-}
-
-void Lib::initMarketLogHandle(string logPath, ofstream & handle)
-{
-    logPath = logPath + "market_" + getDate("%Y%m%d") + ".log";
-    handle.open(logPath.c_str(), ios::app);
-    handle << getDate("%Y%m%d-%H:%M:%S", true) << "|";
-}
-
-
 vector<string> Lib::split(const string& s, const string& delim)
 {
     vector<string> elems;
@@ -128,35 +73,3 @@ vector<string> Lib::split(const string& s, const string& delim)
     }
     return elems;
 }
-
-double Lib::max(double arr[], int cnt)
-{
-    double res = arr[0];
-    for (int i = 0; i < cnt; ++i)
-    {
-        res = res > arr[i] ? res : arr[i];
-    }
-    return res;
-}
-
-double Lib::min(double arr[], int cnt)
-{
-    double res = arr[0];
-    for (int i = 0; i < cnt; ++i)
-    {
-        res = res < arr[i] ? res : arr[i];
-    }
-    return res;
-}
-
-double Lib::mean(double arr[], int cnt)
-{
-    double sum = 0;
-    for (int i = 0; i < cnt; ++i)
-    {
-        sum += arr[i];
-    }
-    return sum / cnt;
-}
-
-

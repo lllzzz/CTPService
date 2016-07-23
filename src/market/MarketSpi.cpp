@@ -2,29 +2,32 @@
 
 using namespace std;
 
-MarketSpi::MarketSpi(CThostFtdcMdApi * mdApi, string logPath,
-    string brokerID, string userID, string password, string instrumnetIDs, int db, string channel)
+MarketSpi::MarketSpi(CThostFtdcMdApi * mdApi)
 {
     _mdApi = mdApi;
-    _logPath = logPath;
+    _logger = new Logger("market"); 
 
-    _userID = userID;
-    _password = password;
-    _brokerID = brokerID;
+    _userID = C::get("market_user_id_online");
+    _password = C::get("market_password_online");
+    _brokerID = C::get("market_broker_id_online");
+    _iIDs = Lib::split(C::get("iids"), "/");
+    _channel = C::get("channel_tick");
 
-    _instrumnetIDs = Lib::split(instrumnetIDs, "/");
-
-    _rds = new Redis("127.0.0.1", 6379, db);
-    _channel = channel;
-
+    string env = C::get("env");
+    int db = Lib::stoi(C::get("rds_db_" + env));
+    string host = C::get("rds_host_" + env);
+    _rds = new Redis(host, 6379, db);
+    _rdsLocal = new Redis("127.0.0.1", 6379, 1);
+    _reqID = 1;
 }
 
 MarketSpi::~MarketSpi()
 {
     _mdApi = NULL;
-    // delete _store;
-    // delete _klineClient;
-    cout << "~MarketSpi" << endl;
+    delete _rds;
+    delete _rdsLocal;
+    delete _logger;
+    _logger->info("MarketSpi[~]");
 }
 
 void MarketSpi::OnFrontConnected()
@@ -39,44 +42,41 @@ void MarketSpi::OnFrontConnected()
     strcpy(reqUserLogin.Password, _password.c_str());
 
     // 发出登陆请求
-    int res = _mdApi->ReqUserLogin(&reqUserLogin, 0);
-    Lib::sysReqLog(_logPath, "MarketSrv[ReqUserLogin]", res);
+    int res = _mdApi->ReqUserLogin(&reqUserLogin, _reqID++);
+    _logger->request("MarketSrv[ReqUserLogin]", _reqID, res);
 }
 
 
 void MarketSpi::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
     CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    Lib::sysErrLog(_logPath, "MarketSrv[OnRspUserLogin]", pRspInfo, nRequestID, bIsLast);
-
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info);
-    info << "MarketSrv[LoginSuccess]";
-    if (pRspUserLogin) {
-        info << "|SessionID|" << pRspUserLogin->SessionID;
-        info << "|TradingDay|" << pRspUserLogin->TradingDay;
-        info << "|MaxOrderRef|" << pRspUserLogin->MaxOrderRef;
+    if (pRspInfo && pRspInfo->ErrorID != 0) {
+        _logger->error("MarketSrv[OnRspUserLogin]", pRspInfo, nRequestID, bIsLast);
     }
-    info << endl;
-    info.close();
 
-    int cnt = _instrumnetIDs.size();
+    _logger->push("SessionID", Lib::itos(pRspUserLogin->SessionID));
+    _logger->push("TradingDay", string(pRspUserLogin->TradingDay));
+    _logger->info("MarketSrv[LoginSuccess]");
+
+    int cnt = _iIDs.size();
     char ** Instrumnet;
     Instrumnet = (char**)malloc((sizeof(char*)) * cnt);
     for (int i = 0; i < cnt; i++) {
-        char * tmp = Lib::stoc(_instrumnetIDs[i]);
+        char * tmp = Lib::stoc(_iIDs[i]);
         Instrumnet[i] = tmp;
     }
 
-    int res = _mdApi->SubscribeMarketData (Instrumnet, cnt);
-    Lib::sysReqLog(_logPath, "MarketSrv[SubscribeMarketData]", res);
+    int res = _mdApi->SubscribeMarketData(Instrumnet, cnt);
     free(Instrumnet);
+    _logger->request("MarketSrv[SubscribeMarketData]", _reqID, res);
 }
 
 void MarketSpi::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument,
     CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    Lib::sysErrLog(_logPath, "MarketSrv[OnRspSubMarketData]", pRspInfo, nRequestID, bIsLast);
+    if (pRspInfo && pRspInfo->ErrorID != 0) {
+        _logger->error("MarketSrv[OnRspSubMarketData]", pRspInfo, nRequestID, bIsLast);
+    }
 }
 
 /**
@@ -92,7 +92,7 @@ void MarketSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarke
 
 void MarketSpi::OnRspError(CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    Lib::sysErrLog(_logPath, "MarketSrv[OnRspError]", pRspInfo, nRequestID, bIsLast);
+    _logger->error("MarketSrv[OnRspError]", pRspInfo, nRequestID, bIsLast);
 }
 
 void MarketSpi::_saveMarketData(CThostFtdcDepthMarketDataField *data)
@@ -114,9 +114,8 @@ void MarketSpi::_saveMarketData(CThostFtdcDepthMarketDataField *data)
     tick["askvol1"] = data->AskVolume1;
 
     std::string jsonStr = writer.write(tick);
-    cout << jsonStr << endl;
     _rds->pub(_channel + iid, jsonStr);
-    _rds->push("Q_TICK", jsonStr);
+    _rdsLocal->push("Q_TICK", jsonStr);
 }
 
 

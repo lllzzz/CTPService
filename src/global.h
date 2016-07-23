@@ -7,6 +7,9 @@
 #include <cstring>
 #include "../include/iniReader/iniReader.h"
 #include "libs/Lib.h"
+#include "libs/Redis.h"
+#include "libs/Config.h"
+#include "libs/Logger.h"
 #include <jsoncpp/json/json.h>
 using namespace std;
 

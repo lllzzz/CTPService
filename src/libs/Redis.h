@@ -1,3 +1,6 @@
+#ifndef REDIS_H
+#define REDIS_H
+
 #include <hiredis/hiredis.h>
 #include <iostream>
 #include <string>
@@ -7,7 +10,7 @@ using namespace std;
 
 class Redis
 {
-private:
+public:
     redisContext *pRedisContext;
     redisReply *pRedisReply;
 public:
@@ -21,4 +24,7 @@ public:
     string incr(string key);
     string get(string key);
     void pub(string key, string data);
+
 };
+
+#endif

@@ -21,22 +21,22 @@ class MarketSpi : public CThostFtdcMdSpi
 private:
 
     CThostFtdcMdApi * _mdApi;
+    Logger * _logger;
     Redis * _rds;
+    Redis * _rdsLocal;
 
     string _brokerID;
     string _userID;
     string _password;
-    std::vector<string>  _instrumnetIDs;
+    std::vector<string> _iIDs;
 
     string _channel;
-
-    string _logPath;
-
+    int _reqID;
     void _saveMarketData(CThostFtdcDepthMarketDataField *);
 
 public:
 
-    MarketSpi(CThostFtdcMdApi *, string, string, string, string, string, int, string);
+    MarketSpi(CThostFtdcMdApi *);
     ~MarketSpi();
 
     void OnFrontConnected();
