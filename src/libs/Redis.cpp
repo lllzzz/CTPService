@@ -71,6 +71,28 @@ string Redis::get(string key)
     return execCmd(cmd);
 }
 
+void Redis::asService(ACTIONCALLBACK callback) 
+{
+    _callback = callback;
+    _channel = C::get("channel_trade");
+}
+
+void Redis::run()
+{
+    pRedisReply = (redisReply*)redisCommand(pRedisContext, Lib::stoc("SUBSCRIBE " + _channel));
+    freeReplyObject(pRedisReply);
+    while(true) {
+        int code = redisGetReply(pRedisContext, (void**)&pRedisReply);
+        if (pRedisReply->elements >= 3) {
+            string data = string(pRedisReply->element[2]->str);
+            if(!_callback(data)) break;
+        }
+        freeReplyObject(pRedisReply);
+        if (REDIS_OK != code) break;
+    }
+}
+
+
 string Redis::execCmd(string cmd, bool returnInt)
 {
     //redisReply是Redis命令回复对象 redis返回的信息保存在redisReply对象中

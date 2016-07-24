@@ -5,14 +5,21 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
+#include "Config.h"
+#include "Lib.h"
 
 using namespace std;
+
+typedef bool (*ACTIONCALLBACK)(string);
 
 class Redis
 {
 public:
     redisContext *pRedisContext;
     redisReply *pRedisReply;
+
+    ACTIONCALLBACK _callback;
+    string _channel;
 public:
     Redis(string host, int port, int db);
     ~Redis();
@@ -25,6 +32,8 @@ public:
     string get(string key);
     void pub(string key, string data);
 
+    void asService(ACTIONCALLBACK);
+    void run();
 };
 
 #endif
