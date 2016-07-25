@@ -5,9 +5,13 @@ import sys
 sys.path.append('../src/libs/')
 import warnings
 warnings.filterwarnings('ignore')
+import re
 
 from Config import Config as C
 from DB import DB
+from redis import Redis
+import demjson as JSON
+import time
 
 class Market():
     """Market相关持久化方法，以及脚本调度"""
@@ -18,6 +22,7 @@ class Market():
     def start(self):
         iids = C.get('iids').split('/')
         for iid in iids:
+            id = re.sub(r'([\d]+)', '', iid)
             self.__initDB(iid)
         os.system('./marketSrv &')
         pass
@@ -28,8 +33,28 @@ class Market():
         os.system('kill -30 %s' % (pid))
 
 
-    def save(self):
+    def __cTime2DBTime(self, cTime):
+        timestamp = time.mktime(time.strptime(cTime, '%Y%m%d %H:%M:%S'))
+        return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
+
+
+    def qStart(self):
+        rds = Redis(host = '127.0.0.1', port = 6379, db = 1)
+        while True:
+            data = rds.rpop('Q_TICK')
+            if (data):
+                dataMap = JSON.decode(data)
+                id = re.sub(r'([\d]+)','',dataMap['iid'])
+                sql = '''
+                    INSERT INTO `tick_%s` (`type`, `iid`, `time`, `msec`, `price`, `volume`,
+                    `bid_price1`, `bid_volume1`, `ask_price1`, `ask_volume1`) VALUES ('%s',
+                    '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')''' % (id, dataMap['iid'],
+                      self.__cTime2DBTime(dataMap['time']), dataMap['msec'], dataMap['price'],
+                      dataMap['vol'], dataMap['bid1'], dataMap['bidvol1'], dataMap['ask1'],
+                      dataMap['askvol1'])
+                self._db.insert(sql)
         pass
+
 
     def __initDB(self, iid):
         sql = '''

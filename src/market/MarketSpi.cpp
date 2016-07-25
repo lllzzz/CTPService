@@ -5,7 +5,7 @@ using namespace std;
 MarketSpi::MarketSpi(CThostFtdcMdApi * mdApi)
 {
     _mdApi = mdApi;
-    _logger = new Logger("market"); 
+    _logger = new Logger("market");
 
     _userID = C::get("market_user_id_online");
     _password = C::get("market_password_online");
@@ -106,7 +106,7 @@ void MarketSpi::_saveMarketData(CThostFtdcDepthMarketDataField *data)
     tick["iid"] = iid;
     tick["price"] = data->LastPrice;
     tick["vol"] = data->Volume;
-    tick["time"] = string(data->ActionDay) + "_" + string(data->UpdateTime);
+    tick["time"] = string(data->ActionDay) + " " + string(data->UpdateTime);
     tick["msec"] = data->UpdateMillisec;
     tick["bid1"] = data->BidPrice1;
     tick["bidvol1"] = data->BidVolume1;
