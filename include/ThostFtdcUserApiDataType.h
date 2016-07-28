@@ -1412,6 +1412,8 @@ typedef char TThostFtdcSystemParamIDType;
 #define THOST_FTDC_TPID_IsFuturePosiLimit 'B'
 ///是否期货下单频率限制
 #define THOST_FTDC_TPID_IsFutureOrderFreq 'C'
+///行权冻结是否计算盈利
+#define THOST_FTDC_TPID_IsExecOrderProfit 'H'
 
 typedef char TThostFtdcTradeParamIDType;
 
@@ -6367,5 +6369,10 @@ typedef char TThostFtdcComeFromType[21];
 ///TFtdcURLLinkType是一个WEB地址类型
 /////////////////////////////////////////////////////////////////////////
 typedef char TThostFtdcURLLinkType[201];
+
+/////////////////////////////////////////////////////////////////////////
+///TFtdcLongIndividualNameType是一个长个人姓名类型
+/////////////////////////////////////////////////////////////////////////
+typedef char TThostFtdcLongIndividualNameType[161];
 
 #endif
