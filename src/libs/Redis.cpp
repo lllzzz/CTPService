@@ -71,10 +71,10 @@ string Redis::get(string key)
     return execCmd(cmd);
 }
 
-void Redis::asService(ACTIONCALLBACK callback) 
+void Redis::asService(ACTIONCALLBACK callback, string channel)
 {
     _callback = callback;
-    _channel = C::get("channel_trade");
+    _channel = channel;
 }
 
 void Redis::run()

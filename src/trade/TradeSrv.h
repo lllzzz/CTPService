@@ -2,9 +2,7 @@
 #define TRADE_SRV_H
 
 #include "../../include/ThostFtdcTraderApi.h"
-#include "../strategy/global.h"
 #include "../global.h"
-#include "../libs/Redis.h"
 #include <map>
 
 
@@ -14,8 +12,9 @@ class TradeSrv
 {
 private:
 
-    string _logPath;
-    Redis * _store;
+    Logger * _logger;
+    Redis * _rds;
+    Redis * _rdsLocal;
 
     string _brokerID;
     string _userID;
@@ -27,10 +26,12 @@ private:
     TThostFtdcFrontIDType _frontID;
     TThostFtdcSessionIDType _sessionID;
     int _maxOrderRef;
+    int _reqID;
+
+    string _channelRsp;
 
     CThostFtdcTraderApi * _tradeApi;
     TraderSpi * _traderSpi;
-    QClient * _tradeStrategySrvClient;
 
     map<int, CThostFtdcOrderField> _orderRef2Info;// orderRef -> OrderInfo
     map<int, int> _orderRef2ID; // orderRef -> orderID
@@ -39,7 +40,6 @@ private:
     map<int, int> _orderIDCanceled; // orderID -> 1
     map<string, int> _rate;
 
-    void _showData();
     bool _isOrderDealed(int);
     bool _isOrderCanceled(int);
 
@@ -61,7 +61,7 @@ private:
 
 public:
 
-    TradeSrv(string, string, string, string, string, string, string, int, int);
+    TradeSrv();
     ~TradeSrv();
 
     void init();
@@ -70,7 +70,7 @@ public:
     void login();
     void onLogin(CThostFtdcRspUserLoginField * const);
 
-    void trade(double, int, bool, bool, int, string, bool);
+    void trade(double, int, bool, bool, int, string, string);
     void onTraded(CThostFtdcTradeField * const);
     void onOrderRtn(CThostFtdcOrderField * const);
     void onOrderErr(CThostFtdcInputOrderField * const, CThostFtdcRspInfoField * const);

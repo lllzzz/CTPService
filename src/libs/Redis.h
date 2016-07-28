@@ -32,7 +32,7 @@ public:
     string get(string key);
     void pub(string key, string data);
 
-    void asService(ACTIONCALLBACK);
+    void asService(ACTIONCALLBACK, string);
     void run();
 };
 

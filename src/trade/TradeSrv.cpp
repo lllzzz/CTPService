@@ -1,18 +1,26 @@
 #include "TradeSrv.h"
 #include "TraderSpi.h"
 
-TradeSrv::TradeSrv(string brokerID, string userID, string password,
-    string tradeFront, string instrumnetIDs, string flowPath, string logPath, int serviceID, int db)
+TradeSrv::TradeSrv()
 {
-    _brokerID = brokerID;
-    _userID = userID;
-    _password = password;
-    _tradeFront = tradeFront;
-    _flowPath = flowPath;
-    _logPath = logPath;
+    _logger = new Logger("trade");
 
-    _store = new Redis("127.0.0.1", 6379, db);
-    _tradeStrategySrvClient = new QClient(serviceID, sizeof(MSG_TO_TRADE_STRATEGY));
+    string env = C::get("env");
+    _brokerID = C::get("trade_broker_id_" + env);
+    _userID = C::get("trade_user_id_" + env);
+    _password = C::get("trade_password_" + env);
+    _tradeFront = C::get("trade_front_" + env);
+    _flowPath = C::get("flow_path_m");
+
+
+    int db = Lib::stoi(C::get("rds_db_" + env));
+    string host = C::get("rds_host_" + env);
+    _rds = new Redis(host, 6379, db);
+    _rdsLocal = new Redis("127.0.0.1", 6379, 1);
+
+    _channelRsp = C::get("channel_trade_rsp");
+
+    _reqID = 1;
 
 }
 
@@ -26,19 +34,17 @@ TradeSrv::~TradeSrv()
     if (_traderSpi) {
         delete _traderSpi;
     }
-    cout << "~TradeSrv" << endl;
+    _logger->info("TradeSrv[~]");
 }
 
 void TradeSrv::init()
 {
     // 初始化交易接口
     _tradeApi = CThostFtdcTraderApi::CreateFtdcTraderApi(Lib::stoc(_flowPath));
-    _traderSpi = new TraderSpi(this, _logPath); // 初始化回调实例
+    _traderSpi = new TraderSpi(this); // 初始化回调实例
     _tradeApi->RegisterSpi(_traderSpi);
     _tradeApi->SubscribePrivateTopic(THOST_TERT_QUICK);
     _tradeApi->SubscribePublicTopic(THOST_TERT_QUICK);
-    // _tradeApi->SubscribePrivateTopic(THOST_TERT_RESUME);
-    // _tradeApi->SubscribePublicTopic(THOST_TERT_RESUME);
 
     _tradeApi->RegisterFront(Lib::stoc(_tradeFront));
     _tradeApi->Init();
@@ -54,8 +60,8 @@ void TradeSrv::confirm()
     string time = Lib::getDate("%H:%M:%S");
     strcpy(req.ConfirmTime, time.c_str());
 
-    int res = _tradeApi->ReqSettlementInfoConfirm(&req, 0);
-    Lib::sysReqLog(_logPath, "TradeSrv[auth]", res);
+    int res = _tradeApi->ReqSettlementInfoConfirm(&req, _reqID);
+    _logger->request("TradeSrv[confirm]", _reqID++, res);
 }
 
 void TradeSrv::login()
@@ -66,8 +72,8 @@ void TradeSrv::login()
     strcpy(req.UserID, Lib::stoc(_userID));
     strcpy(req.Password, Lib::stoc(_password));
 
-    int res = _tradeApi->ReqUserLogin(&req, 0);
-    Lib::sysReqLog(_logPath, "TradeSrv[login]", res);
+    int res = _tradeApi->ReqUserLogin(&req, _reqID);
+    _logger->request("TradeSrv[login]", _reqID++, res);
 }
 
 void TradeSrv::onLogin(CThostFtdcRspUserLoginField * const rsp)
@@ -76,6 +82,11 @@ void TradeSrv::onLogin(CThostFtdcRspUserLoginField * const rsp)
     _frontID = rsp->FrontID;
     _sessionID = rsp->SessionID;
     _maxOrderRef = atoi(rsp->MaxOrderRef);
+
+    _logger->push("FrontID", Lib::itos(rsp->FrontID));
+    _logger->push("SessionID", Lib::itos(rsp->SessionID));
+    _logger->push("MaxOrderRef", string(rsp->MaxOrderRef));
+    _logger->info("TradeSrv[onLogin]");
 }
 
 void TradeSrv::onQryCommRate(CThostFtdcInstrumentOrderCommRateField * const rsp)
@@ -85,21 +96,24 @@ void TradeSrv::onQryCommRate(CThostFtdcInstrumentOrderCommRateField * const rsp)
     double order = rsp->OrderCommByVolume;
     double cancel = rsp->OrderActionCommByVolume;
 
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, iid);
-    info << "TradeSrv[onQryCommRate]";
-    info << "|instrumnetID|" << iid;
-    info << "|order|" << order;
-    info << "|cancel|" << cancel;
-    info << endl;
-    info.close();
+    _logger->push("iID", iid);
+    _logger->push("Order", Lib::dtos(order));
+    _logger->push("Cancel", Lib::dtos(cancel));
+    _logger->info("TradeSrv[onQryCommRate]");
 
-    // save data
-    string data = "rate_" + iid + "_" + Lib::dtos(order) + "_" + Lib::dtos(cancel);
-    _store->push("ORDER_LOGS", data);
+    Json::FastWriter writer;
+    Json::Value data;
+
+    data["type"] = "rate";
+    data["iid"] = iid;
+    data["order"] = order;
+    data["cancel"] = cancel;
+
+    std::string jsonStr = writer.write(data);
+    _rdsLocal->push("Q_TRADE", jsonStr);
 }
 
-void TradeSrv::trade(double price, int total, bool isBuy, bool isOpen, int orderID, string instrumnetID, bool isFok)
+void TradeSrv::trade(double price, int total, bool isBuy, bool isOpen, int orderID, string instrumnetID, string type)
 {
     if (_isOrderDealed(orderID)) return;
     usleep(1500);
@@ -110,56 +124,68 @@ void TradeSrv::trade(double price, int total, bool isBuy, bool isOpen, int order
         flag = THOST_FTDC_OFEN_CloseToday;
     }
 
-    TThostFtdcContingentConditionType condition = THOST_FTDC_VC_AV;
-    // switch (forecastType) {
-    //     case FORECAST_TYPE_NONE:
-    //         condition = THOST_FTDC_VC_AV;
-    //         break;
-    //     case FORECAST_TYPE_UP:
-    //         condition = THOST_FTDC_CC_LastPriceGreaterEqualStopPrice;
-    //         break;
-    //     case FORECAST_TYPE_DOWN:
-    //         condition = THOST_FTDC_CC_LastPriceLesserEqualStopPrice;
-    //         break;
-    //     default:
-    //         break;
-    // }
-
+    TThostFtdcContingentConditionType condition = THOST_FTDC_CC_Immediately;
     TThostFtdcTimeConditionType timeCondition = THOST_FTDC_TC_GFD;
     TThostFtdcVolumeConditionType volumeCondition = THOST_FTDC_VC_AV;
-    if (isFok) {
+    TThostFtdcOrderPriceTypeType priceType = THOST_FTDC_OPT_LimitPrice;
+
+    if (type == "FOK") {
         timeCondition = THOST_FTDC_TC_IOC;
         volumeCondition = THOST_FTDC_VC_CV;
     }
 
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, instrumnetID);
-    info << "TradeSrv[trade]";
-    info << "|orderID|" << orderID;
-    info << "|orderRef|" << _maxOrderRef;
-    info << "|price|" << price;
-    info << endl;
-    info.close();
+    if (type == "FAK") {
+        timeCondition = THOST_FTDC_TC_IOC;
+        volumeCondition = THOST_FTDC_VC_AV;
+    }
+
+    if (type == "IOC") {
+        if (isBuy) {
+            string upper = _rdsLocal->get("UPPERLIMITPRICE_" + instrumnetID);
+            price = Lib::stod(upper);
+        } else {
+            string lower = _rdsLocal->get("LOWERLIMITPRICE_" + instrumnetID);
+            price = Lib::stod(lower);
+        }
+    }
+
+    _logger->push("type", type);
+    _logger->push("iid", instrumnetID);
+    _logger->push("orderID", Lib::itos(orderID));
+    _logger->push("orderRef", Lib::itos(_maxOrderRef));
+    _logger->push("price", Lib::dtos(price));
+    _logger->info("TradeSrv[trade]");
 
     CThostFtdcInputOrderField order = _createOrder(instrumnetID, isBuy, total, price, flag,
             THOST_FTDC_HFEN_Speculation, THOST_FTDC_OPT_LimitPrice, timeCondition, volumeCondition, condition);
 
 
-    int res = _tradeApi->ReqOrderInsert(&order, _maxOrderRef);
-    Lib::sysReqLog(_logPath, "TradeSrv[trade]", res);
-    if (!res) {
-        _orderIDDealed[orderID] = 1;
-    } else {
-        exit(1);
+    while (true) {
+        int res = _tradeApi->ReqOrderInsert(&order, _maxOrderRef);
+        _logger->request("TradeSrv[login]", _maxOrderRef, res);
+        if (!res) {
+            _orderIDDealed[orderID] = 1;
+            break;
+        }
     }
 
-    // save data
+    Json::FastWriter writer;
+    Json::Value data;
+
     string time = Lib::getDate("%Y/%m/%d-%H:%M:%S", true);
-    string data = "trade_" + Lib::itos(orderID) + "_" +
-                  Lib::itos(_frontID) + "_" + Lib::itos(_sessionID) + "_" + Lib::itos(_maxOrderRef) + "_" +
-                  Lib::dtos(price) + "_" + Lib::itos((int)isBuy) + "_" + Lib::itos((int)isOpen) + "_" +
-                  time + "_" + instrumnetID;
-    _store->push("ORDER_LOGS", data);
+    data["type"] = "order";
+    data["iid"] = instrumnetID;
+    data["orderID"] = orderID;
+    data["frontID"] = _frontID;
+    data["sessionID"] = _sessionID;
+    data["orderRef"] = _maxOrderRef;
+    data["price"] = price;
+    data["isBuy"] = (int)isBuy;
+    data["isOpen"] = (int)isOpen;
+    data["time"] = time;
+
+    std::string jsonStr = writer.write(data);
+    _rdsLocal->push("Q_TRADE", jsonStr);
 }
 
 void TradeSrv::onTraded(CThostFtdcTradeField * const rsp)
@@ -179,7 +205,6 @@ void TradeSrv::onTraded(CThostFtdcTradeField * const rsp)
         return;
     }
 
-
     // 普通单
     CThostFtdcOrderField orderInfo = _getOrderInfoByRef(orderRef);
     if (strcmp(orderInfo.ExchangeID, rsp->ExchangeID) != 0 ||
@@ -187,49 +212,53 @@ void TradeSrv::onTraded(CThostFtdcTradeField * const rsp)
     { // 不是我的订单，我就不处理了
         return;
     }
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, string(rsp->InstrumentID));
-    info << "TradeSrv[onTraded]";
-    info << "|orderID|" << orderID;
-    info << "|OrderRef|" << rsp->OrderRef;
-    info << "|Price|" << rsp->Price;
-    info << "|TradeID|" << rsp->TradeID;
-    info << "|OrderSysID|" << rsp->OrderSysID;
-    info << "|OrderLocalID|" << rsp->OrderLocalID;
-    info << "|TradeDate|" << rsp->TradeDate;
-    info << "|TradeTime|" << rsp->TradeTime;
-    info << "|TradingDay|" << rsp->TradingDay;
-    info << endl;
-    info.close();
+
+    // log
+    _logger->push("iid", string(rsp->InstrumentID));
+    _logger->push("orderID", Lib::itos(orderID));
+    _logger->push("orderRef", string(rsp->OrderRef));
+    _logger->push("price", Lib::dtos(rsp->Price));
+    _logger->push("tradeID", string(rsp->TradeID));
+    _logger->push("orderSysID", string(rsp->OrderSysID));
+    _logger->push("orderLocalID", string(rsp->OrderLocalID));
+    _logger->push("tradeDate", string(rsp->TradeDate));
+    _logger->push("tradeTime", string(rsp->TradeTime));
+    _logger->push("TradingDay", string(rsp->TradingDay));
+    _logger->info("TradeSrv[onTraded]");
 
     _clearOrderByRef(orderRef);
 
-    MSG_TO_TRADE_STRATEGY msg = {0};
-    msg.msgType = MSG_TRADE_BACK_TRADED;
-    msg.orderID = orderID;
-    msg.price = rsp->Price;
-    strcpy(msg.date, rsp->TradeDate);
-    strcpy(msg.time, rsp->TradeTime);
-    strcpy(msg.instrumnetID, rsp->InstrumentID);
-    _tradeStrategySrvClient->send((void *)&msg);
+    Json::FastWriter writer;
+    Json::Value data;
 
-    // save data
     string time = Lib::getDate("%Y/%m/%d-%H:%M:%S", true);
-    string data = "traded_" + string(rsp->OrderRef) + "_" + Lib::itos(_frontID) + "_" + Lib::itos(_sessionID) + "_" +
-                  string(rsp->TradeDate) + "_" + string(rsp->TradeTime) + "_" + time + "_" + Lib::dtos(rsp->Price);
-    _store->push("ORDER_LOGS", data);
+    data["type"] = "traded";
+    data["iid"] = rsp->InstrumentID;
+    data["orderID"] = orderID;
+    data["realPrice"] = rsp->Price;
+
+    std::string jsonStr = writer.write(data);
+    _rds->pub(_channelRsp, jsonStr); // 回传消息
+
+    data["orderRef"] = rsp->OrderRef;
+    data["frontID"] = _frontID;
+    data["sessionID"] = _sessionID;
+    data["tradeDate"] = rsp->TradeDate;
+    data["tradeTime"] = rsp->TradeTime;
+    data["localTime"] = time;
+
+    std::string qStr = writer.write(data);
+    _rdsLocal->push("Q_TRADE", qStr); // 记录本地数据
 }
 
 void TradeSrv::onOrderRtn(CThostFtdcOrderField * const rsp)
 {
-
     if (!rsp) {
         return;
     }
     if (rsp->SessionID != _sessionID) {
         return;
     }
-
     int orderRef = atoi(rsp->OrderRef);
     if (orderRef <= 0) {
         return;
@@ -239,32 +268,36 @@ void TradeSrv::onOrderRtn(CThostFtdcOrderField * const rsp)
         return;
     }
 
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, string(rsp->InstrumentID));
-    info << "TradeSrv[onOrderRtn]";
-    info << "|orderID|" << orderID;
-    info << "|OrderRef|" << rsp->OrderRef;
-    info << "|FrontID|" << rsp->FrontID;
-    info << "|SessionID|" << rsp->SessionID;
-    info << "|OrderSysID|" << rsp->OrderSysID;
-    info << "|OrderStatus|" << rsp->OrderStatus;
-    info << endl;
-    info.close();
+    // log
+    _logger->push("iid", string(rsp->InstrumentID));
+    _logger->push("orderID", Lib::itos(orderID));
+    _logger->push("orderRef", string(rsp->OrderRef));
+    _logger->push("frontID", Lib::itos(rsp->FrontID));
+    _logger->push("sessionID", Lib::itos(rsp->SessionID));
+    _logger->push("orderSysID", string(rsp->OrderSysID));
+    _logger->push("orderStatus", Lib::itos(rsp->OrderStatus));
+    _logger->info("TradeSrv[onOrderRtn]");
 
     _updateOrderInfoByRef(orderRef, rsp);
 
-    // save data
-    char c;
-    string str;
-    stringstream stream;
-    stream << rsp->OrderStatus;
-    str = stream.str();
+    Json::FastWriter writer;
+    Json::Value data;
 
     string time = Lib::getDate("%Y/%m/%d-%H:%M:%S", true);
-    string data = "orderRtn_" + string(rsp->OrderRef) + "_" + Lib::itos(_frontID) + "_" + Lib::itos(_sessionID) + "_" +
-                  string(rsp->InsertDate) + "_" + string(rsp->InsertTime) + "_" + time + "_" +
-                  str;
-    _store->push("ORDER_LOGS", data);
+    data["type"] = "order";
+    data["iid"] = rsp->InstrumentID;
+    data["orderID"] = orderID;
+    data["orderRef"] = rsp->OrderRef;
+    data["frontID"] = _frontID;
+    data["sessionID"] = _sessionID;
+    data["insertDate"] = rsp->InsertDate;
+    data["insertTime"] = rsp->InsertTime;
+    data["localTime"] = time;
+    data["orderStatus"] = rsp->OrderStatus;
+
+    std::string qStr = writer.write(data);
+    _rdsLocal->push("Q_TRADE", qStr); // 记录本地数据
+
 }
 
 void TradeSrv::cancel(int orderID)
@@ -280,16 +313,14 @@ void TradeSrv::cancel(int orderID)
 
     CThostFtdcOrderField orderInfo = _getOrderInfoByRef(orderRef);
 
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, string(orderInfo.InstrumentID));
-    info << "TradeSrv[cancel]";
-    info << "|orderID|" << orderID;
-    info << "|orderRef|" << orderRef;
-    info << "|FrontID|" << orderInfo.FrontID;
-    info << "|SessionID|" << orderInfo.SessionID;
-    info << "|OrderSysID|" << orderInfo.OrderSysID;
-    info << endl;
-    info.close();
+    // log
+    _logger->push("iid", string(orderInfo.InstrumentID));
+    _logger->push("orderID", Lib::itos(orderID));
+    _logger->push("orderRef", Lib::itos(orderRef));
+    _logger->push("frontID", Lib::itos(orderInfo.FrontID));
+    _logger->push("sessionID", Lib::itos(orderInfo.SessionID));
+    _logger->push("orderSysID", string(orderInfo.OrderSysID));
+    _logger->info("TradeSrv[cancel]");
 
     CThostFtdcInputOrderActionField req = {0};
 
@@ -316,12 +347,13 @@ void TradeSrv::cancel(int orderID)
     if (strlen(orderInfo.OrderSysID) > 0)
         strncpy(req.OrderSysID, orderInfo.OrderSysID, sizeof(TThostFtdcOrderSysIDType));
 
-    int res = _tradeApi->ReqOrderAction(&req, Lib::stoi(orderInfo.OrderRef));
-    Lib::sysReqLog(_logPath, "TradeSrv[cancel]", res);
-    if (!res) {
-        _orderIDCanceled[orderID] = 1;
-    } else {
-        exit(1);
+    while (true) {
+        int res = _tradeApi->ReqOrderAction(&req, Lib::stoi(orderInfo.OrderRef));
+        _logger->request("TradeSrv[cancel]", Lib::stoi(orderInfo.OrderRef), res);
+        if (!res) {
+            _orderIDCanceled[orderID] = 1;
+            break;
+        }
     }
 }
 
@@ -345,86 +377,80 @@ void TradeSrv::onCancel(CThostFtdcOrderField * const rsp)
         return;
     }
 
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, string(rsp->InstrumentID));
-    info << "TradeSrv[onCancel]";
-    info << "|orderID|" << orderID;
-    info << "|OrderRef|" << rsp->OrderRef;
-    info << "|FrontID|" << rsp->FrontID;
-    info << "|SessionID|" << rsp->SessionID;
-    info << "|OrderSysID|" << rsp->OrderSysID;
-    info << "|OrderStatus|" << rsp->OrderStatus;
-    info << "|LimitPrice|" << rsp->LimitPrice;
-    info << endl;
-    info.close();
-
-    // 撤单情况
-    MSG_TO_TRADE_STRATEGY msg = {0};
-    msg.msgType = MSG_TRADE_BACK_CANCELED;
-    msg.orderID = orderID;
-    msg.price = rsp->LimitPrice;
-    strcpy(msg.instrumnetID, rsp->InstrumentID);
-    _tradeStrategySrvClient->send((void *)&msg);
+    // log
+    _logger->push("iid", string(rsp->InstrumentID));
+    _logger->push("orderID", Lib::itos(orderID));
+    _logger->push("orderRef", string(rsp->OrderRef));
+    _logger->push("frontID", Lib::itos(rsp->FrontID));
+    _logger->push("sessionID", Lib::itos(rsp->SessionID));
+    _logger->push("orderSysID", string(rsp->OrderSysID));
+    _logger->push("orderStatus", Lib::itos(rsp->OrderStatus));
+    _logger->push("limitPrice", Lib::dtos(rsp->LimitPrice));
+    _logger->info("TradeSrv[onCancel]");
 
     _clearOrderByRef(orderRef);
 
-    // save data
-    char c;
-    string str;
-    stringstream stream;
-    stream << rsp->OrderStatus;
-    str = stream.str();
-
-    string tickStr = _store->get("CURRENT_TICK_" + string(rsp->InstrumentID));
+    Json::FastWriter writer;
+    Json::Value data;
 
     string time = Lib::getDate("%Y/%m/%d-%H:%M:%S", true);
-    string data = "orderRtn_" + string(rsp->OrderRef) + "_" + Lib::itos(_frontID) + "_" + Lib::itos(_sessionID) + "_" +
-                  string(rsp->InsertDate) + "_" + string(rsp->InsertTime) + "_" + time + "_" +
-                  str + "_" + tickStr ;
-    _store->push("ORDER_LOGS", data);
+    data["type"] = "canceled";
+    data["iid"] = rsp->InstrumentID;
+    data["orderID"] = orderID;
+    data["price"] = rsp->LimitPrice;
+
+    std::string jsonStr = writer.write(data);
+    _rds->pub(_channelRsp, jsonStr); // 回传消息
+
+    data["orderRef"] = rsp->OrderRef;
+    data["frontID"] = _frontID;
+    data["sessionID"] = _sessionID;
+    data["insertDate"] = rsp->InsertDate;
+    data["insertTime"] = rsp->InsertTime;
+    data["localTime"] = time;
+    data["orderStatus"] = rsp->OrderStatus;
+    data["currentTick"] = _rdsLocal->get("CURRENT_TICK_" + string(rsp->InstrumentID));
+
+    std::string qStr = writer.write(data);
+    _rdsLocal->push("Q_TRADE", qStr); // 记录本地数据
 }
 
 void TradeSrv::onCancelErr(CThostFtdcInputOrderActionField * const rsp, CThostFtdcRspInfoField * const errInfo)
 {
 
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, string(rsp->InstrumentID));
-    info << "TradeSrv[onCancelErr]";
-
     if (!rsp) {
-        info << endl;
-        info.close();
         return;
     }
     int orderRef = atoi(rsp->OrderRef);
     if (orderRef <= 0) {
-        info << endl;
-        info.close();
         return;
     }
     int orderID = _getOrderIDByRef(orderRef);
     if (orderID <= 0) {
-        info << endl;
-        info.close();
         return;
     }
 
-    info << "|orderID|" << orderID;
-    info << "|OrderRef|" << rsp->OrderRef;
-    info << "|errorNo|" << errInfo->ErrorID;
-    info << "|OrderActionRef|" << rsp->OrderActionRef;
-    info << "|SessionID|" << rsp->SessionID;
-    info << "|OrderSysID|" << rsp->OrderSysID;
-    info << endl;
-    info.close();
+    // log
+    _logger->push("iid", string(rsp->InstrumentID));
+    _logger->push("orderID", Lib::itos(orderID));
+    _logger->push("errNo", Lib::itos(errInfo->ErrorID));
+    _logger->push("orderActionRef", Lib::itos(rsp->OrderActionRef));
+    _logger->push("orderRef", string(rsp->OrderRef));
+    _logger->push("frontID", Lib::itos(rsp->FrontID));
+    _logger->push("sessionID", Lib::itos(rsp->SessionID));
+    _logger->push("orderSysID", string(rsp->OrderSysID));
+    _logger->info("TradeSrv[onCancelErr]");
 
-    // 对于撤单失败，不再撤，原则上是该单已成
-    MSG_TO_TRADE_STRATEGY msg = {0};
-    msg.msgType = MSG_TRADE_BACK_ERR;
-    msg.orderID = orderID;
-    msg.err = errInfo->ErrorID;
-    strcpy(msg.instrumnetID, rsp->InstrumentID);
-    _tradeStrategySrvClient->send((void *)&msg);
+    Json::FastWriter writer;
+    Json::Value data;
+
+    data["type"] = "cancelErr";
+    data["iid"] = rsp->InstrumentID;
+    data["orderID"] = orderID;
+    data["errNo"] = errInfo->ErrorID;
+
+    std::string jsonStr = writer.write(data);
+    _rds->pub(_channelRsp, jsonStr); // 回传消息
 
     _clearOrderByRef(orderRef);
 }
@@ -432,56 +458,50 @@ void TradeSrv::onCancelErr(CThostFtdcInputOrderActionField * const rsp, CThostFt
 void TradeSrv::onOrderErr(CThostFtdcInputOrderField * const rsp, CThostFtdcRspInfoField * const errInfo)
 {
 
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, string(rsp->InstrumentID));
-    info << "TradeSrv[onOrderErr]";
-
     if (!rsp) {
-        info << endl;
-        info.close();
         return;
     }
     int orderRef = atoi(rsp->OrderRef);
     if (orderRef <= 0) {
-        info << endl;
-        info.close();
         return;
     }
     int orderID = _getOrderIDByRef(orderRef);
     if (orderID <= 0) {
-        info << endl;
-        info.close();
         return;
     }
 
-    info << "|orderID|" << orderID;
-    info << "|OrderRef|" << rsp->OrderRef;
-    info << "|errorNo|" << errInfo->ErrorID;
-    info << endl;
-    info.close();
+    // log
+    _logger->push("iid", string(rsp->InstrumentID));
+    _logger->push("orderID", Lib::itos(orderID));
+    _logger->push("errNo", Lib::itos(errInfo->ErrorID));
+    _logger->push("orderRef", string(rsp->OrderRef));
+    _logger->push("frontID", Lib::itos(_frontID));
+    _logger->push("sessionID", Lib::itos(_sessionID));
+    _logger->info("TradeSrv[onOrderErr]");
 
-    // 对于撤单失败，不再撤，原则上是该单已成
-    MSG_TO_TRADE_STRATEGY msg = {0};
-    msg.msgType = MSG_TRADE_BACK_ERR;
-    msg.orderID = orderID;
-    msg.err = errInfo->ErrorID;
-    strcpy(msg.instrumnetID, rsp->InstrumentID);
-    _tradeStrategySrvClient->send((void *)&msg);
+    Json::FastWriter writer;
+    Json::Value data;
+
+    data["type"] = "orderErr";
+    data["iid"] = rsp->InstrumentID;
+    data["orderID"] = orderID;
+    data["errNo"] = errInfo->ErrorID;
+
+    std::string jsonStr = writer.write(data);
+    _rds->pub(_channelRsp, jsonStr); // 回传消息
 
     _clearOrderByRef(orderRef);
 }
 
 void TradeSrv::_initOrder(int orderID, string iID)
 {
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info, iID);
-    info << "TradeSrv[initOrder]";
-    info << "|orderID|" << orderID;
+    _logger->push("iid", iID);
+    _logger->push("orderID", Lib::itos(orderID));
 
     // 查询手续费
     std::map<string, int>::iterator i = _rate.find(iID);
     if (i == _rate.end()) {
-        info << "|isFirst|" << 1;
+        _logger->push("isFirst", "True");
         _rate[iID] = 1;
         CThostFtdcQryInstrumentOrderCommRateField req = {0};
 
@@ -489,15 +509,14 @@ void TradeSrv::_initOrder(int orderID, string iID)
         strcpy(req.InvestorID, Lib::stoc(_userID));
         strcpy(req.InstrumentID, Lib::stoc(iID));
 
-        int res = _tradeApi->ReqQryInstrumentOrderCommRate(&req, 0);
-        Lib::sysReqLog(_logPath, "TradeSrv[rate]", res);
+        int res = _tradeApi->ReqQryInstrumentOrderCommRate(&req, _reqID);
+        _logger->request("TradeSrv[rate]", _reqID++, res);
     }
 
 
     _maxOrderRef++;
-    info << "|orderRef|" << _maxOrderRef;
-    info << endl;
-    info.close();
+    _logger->push("orderRef", Lib::itos(_maxOrderRef));
+    _logger->info("TradeSrv[initOrder]");
 
     _orderRef2ID[_maxOrderRef] = orderID;
     _orderID2Ref[orderID] = _maxOrderRef;
@@ -510,7 +529,6 @@ void TradeSrv::_initOrder(int orderID, string iID)
     strcpy(data.InvestorID, _userID.c_str());
 
     _orderRef2Info[_maxOrderRef] = data;
-    // _showData();
 }
 
 void TradeSrv::_clearOrderByRef(int orderRef)
@@ -527,7 +545,6 @@ void TradeSrv::_clearOrderByRef(int orderRef)
     i2O = _orderRef2Info.find(orderRef);
     if (i2O != _orderRef2Info.end()) _orderRef2Info.erase(i2O);
 
-    // _showData();
 }
 
 int TradeSrv::_getOrderIDByRef(int orderRef)
@@ -680,37 +697,6 @@ CThostFtdcInputOrderField TradeSrv::_createOrder(string instrumnetID, bool isBuy
     // order.MacAddress = ;///Mac地址
 
     return order;
-}
-
-void TradeSrv::_showData()
-{
-    ofstream info;
-    Lib::initInfoLogHandle(_logPath, info);
-    info << "TradeSrv[data]";
-    info << "|orderRefInfo|";
-    std::map<int, CThostFtdcOrderField>::iterator i2C;
-    std::map<int, int>::iterator i;
-    for (i2C = _orderRef2Info.begin(); i2C != _orderRef2Info.end(); ++i2C)
-    {
-        if (i2C != _orderRef2Info.begin()) info << ",";
-        info << i2C->first << "->" << (i2C->second).OrderRef;
-    }
-
-    info << "|orderRef2ID|";
-    for (i = _orderRef2ID.begin(); i != _orderRef2ID.end(); ++i)
-    {
-        if (i != _orderRef2ID.begin()) info << ",";
-        info << i->first << "->" << i->second;
-    }
-
-    info << "|orderID2Ref|";
-    for (i = _orderID2Ref.begin(); i != _orderID2Ref.end(); ++i)
-    {
-        if (i != _orderID2Ref.begin()) info << ",";
-        info << i->first << "->" << i->second;
-    }
-    info << endl;
-    info.close();
 }
 
 bool TradeSrv::_isOrderDealed(int orderID)

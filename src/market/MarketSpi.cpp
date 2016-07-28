@@ -42,8 +42,8 @@ void MarketSpi::OnFrontConnected()
     strcpy(reqUserLogin.Password, _password.c_str());
 
     // 发出登陆请求
-    int res = _mdApi->ReqUserLogin(&reqUserLogin, _reqID++);
-    _logger->request("MarketSrv[ReqUserLogin]", _reqID, res);
+    int res = _mdApi->ReqUserLogin(&reqUserLogin, _reqID);
+    _logger->request("MarketSrv[ReqUserLogin]", _reqID++, res);
 }
 
 
@@ -116,6 +116,9 @@ void MarketSpi::_saveMarketData(CThostFtdcDepthMarketDataField *data)
     std::string jsonStr = writer.write(tick);
     _rds->pub(_channel + iid, jsonStr);
     _rdsLocal->push("Q_TICK", jsonStr);
+    _rdsLocal->set("CURRENT_TICK_" + iid, Lib::dtos(data->LastPrice));
+    _rdsLocal->set("UPPERLIMITPRICE_" + iid, Lib::dtos(data->UpperLimitPrice));
+    _rdsLocal->set("LOWERLIMITPRICE_" + iid, Lib::dtos(data->LowerLimitPrice));
 }
 
 

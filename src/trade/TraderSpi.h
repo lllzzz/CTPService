@@ -12,11 +12,10 @@ class TraderSpi : public CThostFtdcTraderSpi
 private:
 
     TradeSrv * _service;
-    string _logPath;
-    int _sessionID;
+    Logger * _logger;
 
 public:
-    TraderSpi(TradeSrv *, string);
+    TraderSpi(TradeSrv *);
     ~TraderSpi();
 
     void OnFrontConnected();
@@ -41,6 +40,9 @@ public:
 
     void OnFrontDisconnected(int nReason);
     void OnHeartBeatWarning(int nTimeLapse);
+
+    void OnRspQryInstrumentOrderCommRate(CThostFtdcInstrumentOrderCommRateField *pInstrumentOrderCommRate,
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 };
 
 #endif
