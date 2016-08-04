@@ -24,9 +24,9 @@ MarketSpi::MarketSpi(CThostFtdcMdApi * mdApi)
 MarketSpi::~MarketSpi()
 {
     _mdApi = NULL;
-    delete _rds;
-    delete _rdsLocal;
-    delete _logger;
+    // delete _rds;
+    // delete _rdsLocal;
+    // delete _logger;
     _logger->info("MarketSpi[~]");
 }
 
@@ -115,10 +115,11 @@ void MarketSpi::_saveMarketData(CThostFtdcDepthMarketDataField *data)
 
     std::string jsonStr = writer.write(tick);
     _rds->pub(_channel + iid, jsonStr);
-    _rdsLocal->push("Q_TICK", jsonStr);
     _rdsLocal->set("CURRENT_TICK_" + iid, Lib::dtos(data->LastPrice));
     _rdsLocal->set("UPPERLIMITPRICE_" + iid, Lib::dtos(data->UpperLimitPrice));
     _rdsLocal->set("LOWERLIMITPRICE_" + iid, Lib::dtos(data->LowerLimitPrice));
+    // _rdsLocal->push("Q_TICK", jsonStr);
+    Q::push("Q_TICK", jsonStr);
 }
 
 

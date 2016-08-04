@@ -35,12 +35,6 @@ void Redis::pub(string key, string data)
     execCmd(cmd);
 }
 
-void Redis::push(string key, string data)
-{
-    string cmd = "lpush " + key + " " + data;
-    execCmd(cmd);
-}
-
 string Redis::pop(string key)
 {
     string cmd = "rpop " + key;

@@ -38,29 +38,21 @@ class Market():
         return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
 
 
-    def qStart(self):
-        rds = Redis(host = '127.0.0.1', port = 6379, db = 1)
-        while True:
-            data = rds.rpop('Q_TICK')
-            if (data):
-                dataMap = JSON.decode(data)
-                id = re.sub(r'([\d]+)','',dataMap['iid'])
-                sql = '''
-                    INSERT INTO `tick_%s` (`type`, `iid`, `time`, `msec`, `price`, `volume`,
-                    `bid_price1`, `bid_volume1`, `ask_price1`, `ask_volume1`) VALUES ('%s',
-                    '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')''' % (id, dataMap['iid'],
-                      self.__cTime2DBTime(dataMap['time']), dataMap['msec'], dataMap['price'],
-                      dataMap['vol'], dataMap['bid1'], dataMap['bidvol1'], dataMap['ask1'],
-                      dataMap['askvol1'])
-                self._db.insert(sql)
-        pass
+    def processQ(self, data):
+        sql = '''
+            INSERT INTO `tick_%s` (`iid`, `time`, `msec`, `price`, `volume`,
+            `bid_price1`, `bid_volume1`, `ask_price1`, `ask_volume1`) VALUES ('%s',
+            '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')''' % (data['iid'],
+              data['iid'], self.__cTime2DBTime(data['time']), data['msec'], data['price'],
+              data['vol'], data['bid1'], data['bidvol1'], data['ask1'],
+              data['askvol1'])
+        self._db.insert(sql)
 
 
     def __initDB(self, iid):
         sql = '''
             CREATE TABLE IF NOT EXISTS `tick_%s` (
               `id` int(11) NOT NULL AUTO_INCREMENT,
-              `type` varchar(50) NOT NULL DEFAULT '',
               `iid` varchar(50) NOT NULL DEFAULT '',
               `time` datetime NOT NULL COMMENT '服务端返回时间',
               `msec` int(11) NOT NULL DEFAULT '0',
