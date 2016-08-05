@@ -29,6 +29,7 @@ public:
     void setnx(string key, string data);
     string incr(string key);
     string get(string key);
+    void push(string key, string data);
 
     void pub(string key, string data);
 

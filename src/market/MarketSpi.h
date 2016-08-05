@@ -3,7 +3,6 @@
 
 #include "../global.h"
 #include "../../include/ThostFtdcMdApi.h"
-#include "../../include/ThostFtdcTraderApi.h"
 #include "../libs/Redis.h"
 #include <map>
 

@@ -41,6 +41,12 @@ string Redis::pop(string key)
     return execCmd(cmd);
 }
 
+void Redis::push(string key, string data)
+{
+    string cmd = "lpush " + key + " " + data;
+    execCmd(cmd);
+}
+
 void Redis::set(string key, string data)
 {
     string cmd = "set " + key + " " + data;

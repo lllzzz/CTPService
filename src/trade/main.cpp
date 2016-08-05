@@ -7,7 +7,6 @@ bool action(string);
 int main(int argc, char const *argv[])
 {
     service = new TradeSrv();
-    service->init();
 
     // 服务化
     string env = C::get("env");
@@ -36,20 +35,34 @@ bool action(string data)
     reader.parse(data, root, false);
 
     string action = root["action"].asString();
+    int appKey = root["appKey"].asInt();
+
     if (action == "trade") {
+        int orderID  = root["orderID"].asInt();
+        string iid   = root["iid"].asString();
+        int type     = root["type"].asInt();
         double price = root["price"].asDouble();
-        int total = root["total"].asInt();
-        bool isBuy = root["isBuy"].asBool();
-        bool isOpen = root["isOpen"].asBool();
-        int orderID = root["orderID"].asInt();
-        string iid = root["iid"].asString();
-        string type = root["type"].asString();
-        service->trade(price, total, isBuy, isOpen, orderID, iid, type);
+        int total    = root["total"].asInt();
+        bool isBuy   = root["isBuy"].asBool();
+        bool isOpen  = root["isOpen"].asBool();
+
+        service->trade(appKey, orderID, iid, isOpen, isBuy, total, price, type);
+
     }
 
     if (action == "cancel") {
         int orderID = root["orderID"].asInt();
-        service->cancel(orderID);
+        service->cancel(appKey, orderID);
+    }
+
+    if (action == "getCharge") {
+        string iid = root["iid"].asString();
+        // service->getCharge(iid);
+    }
+
+    if (action == "getPosition") {
+        string iid = root["iid"].asString();
+        // service->getPosition(iid);
     }
 
     return true;
