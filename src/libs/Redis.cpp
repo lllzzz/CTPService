@@ -31,7 +31,7 @@ Redis::~Redis()
 
 void Redis::pub(string key, string data)
 {
-    string cmd = "public " + key + " " + data;
+    string cmd = "publish " + key + " " + data;
     execCmd(cmd);
 }
 
