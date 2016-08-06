@@ -106,14 +106,14 @@ void MarketSpi::_saveMarketData(CThostFtdcDepthMarketDataField *data)
     tick["iid"] = iid;
     tick["price"] = data->LastPrice;
     tick["vol"] = data->Volume;
-    tick["time"] = string(data->ActionDay) + " " + string(data->UpdateTime);
+    tick["time"] = string(data->ActionDay) + "_" + string(data->UpdateTime);
     tick["msec"] = data->UpdateMillisec;
     tick["bid1"] = data->BidPrice1;
     tick["bidvol1"] = data->BidVolume1;
     tick["ask1"] = data->AskPrice1;
     tick["askvol1"] = data->AskVolume1;
 
-    std::string jsonStr = writer.write(tick);
+    string jsonStr = writer.write(tick);
     _rds->pub(_channel + iid, jsonStr);
     _rdsLocal->set("CURRENT_TICK_" + iid, Lib::dtos(data->LastPrice));
     _rdsLocal->set("UPPERLIMITPRICE_" + iid, Lib::dtos(data->UpperLimitPrice));
