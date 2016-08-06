@@ -8,7 +8,5 @@ ts部分作为交易中心，负责交易指令的发送，与订单状态的保
 
 
 
-###  MarketService说明：
-bin目录./ctpService start启动服务，配置文件位于etc/config.ini。停止服务命令./ctpService stop。
-
-消息队列为本地redis，db为1，这个是固定的，暂时不可配置，在队列中写入db，db可配置，启动命令为./ctpService queue start，停止服务为./ctpService queue stop
+###  服务说明：
+bin目录./ctpService start启动服务，配置文件位于etc/config.ini。停止服务命令./ctpService stop。查看状态./ctpService status（其实就是ps）。启动队列./ctpService q start。停止队列./ctpService q stop。
