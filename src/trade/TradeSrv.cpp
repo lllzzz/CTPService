@@ -375,14 +375,10 @@ void TradeSrv::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThos
     _logger->push("errNo", Lib::itos(pRspInfo->ErrorID));
     _logger->info("TradeSrv[OnErrRtnOrderInsert]");
 
-    int err = pRspInfo->ErrorID;
-    if (err == 50) { // 没有可撤订单
-        _rspMsg(info.appKey, CODE_ERR_OVER_CLOSETODAY_POSITION, "没有可撤订单");
-    }
+    _rspMsg(info.appKey, pRspInfo->ErrorID, string(pRspInfo->ErrorMsg));
 }
 
-void TradeSrv::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction,
-        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+void TradeSrv::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
     if (pRspInfo && pRspInfo->ErrorID != 0) {
         _logger->error("TradeSrv[OnRspOrderAction]", pRspInfo, nRequestID, bIsLast);
@@ -400,11 +396,7 @@ void TradeSrv::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderActi
     _logger->push("errNo", Lib::itos(pRspInfo->ErrorID));
     _logger->info("TradeSrv[OnRspOrderAction]");
 
-    int err = pRspInfo->ErrorID;
-    if (err == 26) { // 订单不可撤
-        _rspMsg(info.appKey, CODE_ERR_INSUITABLE_ORDER_STATUS, "订单不可撤");
-    }
-
+    _rspMsg(info.appKey, pRspInfo->ErrorID, string(pRspInfo->ErrorMsg));
 
 }
 

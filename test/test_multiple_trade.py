@@ -54,8 +54,8 @@ for msg in client.listen():
             print data['msg']
             break;
         else:
-            isBuy = 1 if isBuy is 0 else 0
-            isOpen = 1 if isOpen is 0 else 0
+            isBuy = 1 if isBuy == 0 else 0
+            isOpen = 1 if isOpen == 0 else 0
             orderID += 1
             data = data['data']
             print data['orderID']
