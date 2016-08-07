@@ -375,7 +375,7 @@ void TradeSrv::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThos
     _logger->push("errNo", Lib::itos(pRspInfo->ErrorID));
     _logger->info("TradeSrv[OnErrRtnOrderInsert]");
 
-    _rspMsg(info.appKey, pRspInfo->ErrorID, string(pRspInfo->ErrorMsg));
+    _rspMsg(info.appKey, pRspInfo->ErrorID, Lib::g2u(string(pRspInfo->ErrorMsg)));
 }
 
 void TradeSrv::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -396,7 +396,7 @@ void TradeSrv::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderActi
     _logger->push("errNo", Lib::itos(pRspInfo->ErrorID));
     _logger->info("TradeSrv[OnRspOrderAction]");
 
-    _rspMsg(info.appKey, pRspInfo->ErrorID, string(pRspInfo->ErrorMsg));
+    _rspMsg(info.appKey, pRspInfo->ErrorID, Lib::g2u(string(pRspInfo->ErrorMsg)));
 
 }
 
