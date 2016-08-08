@@ -28,6 +28,14 @@ char * Lib::stoc(string str)
     return ch;
 };
 
+string Lib::ctos(char c)
+{
+    char cc[2];
+    cc[0] = c;
+    cc[1] = '\0';
+    return string(cc);
+}
+
 int Lib::stoi(string s)
 {
     return atoi(s.c_str());

@@ -6,6 +6,7 @@ import sys
 sys.path.append('../src/libs/')
 from Config import Config as C
 import demjson as JSON
+from redis import Redis
 import re
 import time
 
@@ -14,39 +15,13 @@ class Q():
     def __init__(self, key, obj):
         self.key = key
         self.obj = obj
-        # self.qPath = '../../logs/'
-        self.qPath = C.get('q_path')
-
-    def __getFile(self):
-
-        fNames = os.listdir(self.qPath)
-        pFiles = []
-        for file in fNames:
-            if re.search(self.key + '_.*\.push', file):
-                pFiles.append(file)
-
-        if len(pFiles) == 0: return False
-        pFiles.sort()
-        return self.qPath + pFiles.pop(0)
-
-    def __getData(self):
-
-        fName = self.__getFile()
-        if not fName: return []
-        fp = open(fName, 'r')
-        data = fp.readlines()
-        fp.close()
-        os.remove(fName)
-        return data
-
+        self.rds = Redis(host = '127.0.0.1', port = 6379, db = 1)
 
     def run(self):
         while True:
-            datas = self.__getData()
-            if len(datas):
-                for line in datas:
-                    data = JSON.decode(line)
-                    self.obj.processQ(data)
-                pass
+            data = self.rds.rpop(self.key)
+            if data:
+                dataObj = JSON.decode(data)
+                self.obj.processQ(dataObj)
             else:
                 time.sleep(1)

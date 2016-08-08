@@ -41,7 +41,7 @@ data = {
 }
 rds.publish('trade', JSON.encode(data))
 
-maxCnt = 100
+maxCnt = 101
 
 # 监听反馈
 for msg in client.listen():
@@ -71,3 +71,4 @@ for msg in client.listen():
                 'isBuy': isBuy,
                 'isOpen': isOpen,
             }
+            rds.publish('trade', JSON.encode(newData))

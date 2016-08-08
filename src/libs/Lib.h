@@ -26,6 +26,7 @@ public:
     static string getDate(string format, bool needUsec = false);
 
     static char * stoc(string str);
+    static string ctos(char c);
     static int stoi(string s);
     static double stod(string s);
 

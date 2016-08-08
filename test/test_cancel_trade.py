@@ -8,9 +8,6 @@ import demjson as JSON
 import time
 
 NORMAL = 0
-FAK = 1
-IOC = 2
-FOK = 3
 
 appKey = 100
 host = '127.0.0.1'
@@ -21,9 +18,7 @@ orderID = 1;
 
 tradeType = sys.argv[1]
 tradeType = locals()[tradeType]
-price = 0
-if tradeType != IOC:
-    price = sys.argv[2]
+price = sys.argv[2]
 
 # 订阅交易回馈
 client = rds.pubsub()
@@ -40,6 +35,15 @@ data = {
     'total': 1,
     'isBuy': 1,
     'isOpen': 1,
+}
+rds.publish('trade', JSON.encode(data))
+
+time.sleep(1)
+# 撤单
+data = {
+    'action': 'cancel',
+    'appKey': appKey,
+    'orderID': orderID,
 }
 rds.publish('trade', JSON.encode(data))
 

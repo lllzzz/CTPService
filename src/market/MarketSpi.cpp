@@ -118,8 +118,7 @@ void MarketSpi::_saveMarketData(CThostFtdcDepthMarketDataField *data)
     _rdsLocal->set("CURRENT_TICK_" + iid, Lib::dtos(data->LastPrice));
     _rdsLocal->set("UPPERLIMITPRICE_" + iid, Lib::dtos(data->UpperLimitPrice));
     _rdsLocal->set("LOWERLIMITPRICE_" + iid, Lib::dtos(data->LowerLimitPrice));
-    // _rdsLocal->push("Q_TICK", jsonStr);
-    Q::push("Q_TICK", jsonStr);
+    _rdsLocal->push("Q_TICK", jsonStr);
 }
 
 

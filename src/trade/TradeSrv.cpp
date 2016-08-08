@@ -93,6 +93,7 @@ void TradeSrv::trade(int appKey, int orderID, string iid, bool isOpen, bool isBu
 {
     if (_isExistOrder(appKey, orderID)) {
         _rspMsg(appKey, CODE_ERR_ORDER_EXIST, "不要重复提交订单");
+        return;
     }
     _initOrder(appKey, orderID, iid);
 
@@ -178,7 +179,7 @@ void TradeSrv::OnRtnOrder(CThostFtdcOrderField *pOrder)
     _logger->push("iid", string(pOrder->InstrumentID));
     _logger->push("orderID", Lib::itos(info.orderID));
     _logger->push("orderRef", string(pOrder->OrderRef));
-    _logger->push("orderStatus", Lib::itos(pOrder->OrderStatus));
+    _logger->push("orderStatus", Lib::ctos(pOrder->OrderStatus));
     _logger->info("TradeSrv[OnRtnOrder]");
 
     _updateOrder(orderRef, pOrder);
@@ -267,6 +268,7 @@ void TradeSrv::cancel(int appKey, int orderID)
 {
     if (!_isExistOrder(appKey, orderID)) {
         _rspMsg(appKey, CODE_ERR_ORDER_NOT_EXIST, "撤销订单不存在");
+        return;
     }
     OrderInfo info = _orderInfoViaAO[appKey][orderID];
 
@@ -388,7 +390,7 @@ void TradeSrv::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderActi
     if (!info.orderID) return;
     if (pInputOrderAction->SessionID != _sessionID || pInputOrderAction->FrontID != _frontID) return;
 
-    // log 
+    // log
     _logger->push("appKey", Lib::itos(info.appKey));
     _logger->push("iid", string(pInputOrderAction->InstrumentID));
     _logger->push("orderID", Lib::itos(info.orderID));
@@ -466,7 +468,7 @@ void TradeSrv::_rspMsg(int appKey, int err, string msg, Json::Value * data)
     Json::Value rsp;
     rsp["err"] = err;
     rsp["msg"] = msg;
-    if (data) rsp["data"] = data;
+    if (data) rsp["data"] = *data;
 
     Json::FastWriter writer;
     string jsonStr = writer.write(rsp);
