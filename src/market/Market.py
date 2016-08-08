@@ -34,7 +34,7 @@ class Market():
 
 
     def __cTime2DBTime(self, cTime):
-        timestamp = time.mktime(time.strptime(cTime, '%Y%m%d %H:%M:%S'))
+        timestamp = time.mktime(time.strptime(cTime, '%Y%m%d_%H:%M:%S'))
         return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
 
 
