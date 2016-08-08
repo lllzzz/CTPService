@@ -1,4 +1,4 @@
-# ctpTrading
+# ctpService
 
 系统分为MarketService与TradeService两个部分。
 

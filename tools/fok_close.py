@@ -15,6 +15,7 @@ env = sys.argv[1]
 appKey = int(sys.argv[2])
 orderID = int(sys.argv[3])
 iid = sys.argv[4]
+isBuy = int(sys.argv[5])
 host = C.get('rds_host_' + env)
 db = C.get('rds_db_' + env)
 rds = Redis(host = host, db = db, port = 6379)
@@ -32,8 +33,8 @@ data = {
     'type': IOC,
     'price': 0,
     'total': 1,
-    'isBuy': 1,
-    'isOpen': 1,
+    'isBuy': isBuy,
+    'isOpen': 0,
 }
 
 rds.publish('trade', JSON.encode(data))
