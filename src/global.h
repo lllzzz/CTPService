@@ -10,7 +10,6 @@
 #include "libs/Redis.h"
 #include "libs/Config.h"
 #include "libs/Logger.h"
-#include "libs/Q.h"
 #include <jsoncpp/json/json.h>
 using namespace std;
 
