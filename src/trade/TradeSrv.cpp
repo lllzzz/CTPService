@@ -180,6 +180,10 @@ void TradeSrv::OnRtnOrder(CThostFtdcOrderField *pOrder)
     _logger->push("orderID", Lib::itos(info.orderID));
     _logger->push("orderRef", string(pOrder->OrderRef));
     _logger->push("orderStatus", Lib::ctos(pOrder->OrderStatus));
+    _logger->push("VolumeTotalOriginal", Lib::itos(pOrder->VolumeTotalOriginal));
+    _logger->push("VolumeTraded", Lib::itos(pOrder->VolumeTraded));
+    _logger->push("VolumeTotal", Lib::itos(pOrder->VolumeTotal));
+    _logger->push("ZCETotalTradedVolume", Lib::itos(pOrder->ZCETotalTradedVolume));
     _logger->info("TradeSrv[OnRtnOrder]");
 
     _updateOrder(orderRef, pOrder);
@@ -212,6 +216,7 @@ void TradeSrv::_onOrder(CThostFtdcOrderField *pOrder)
     data["insertTime"] = pOrder->InsertTime;
     data["localTime"] = time;
     data["orderStatus"] = pOrder->OrderStatus;
+    data["todoVol"] = pOrder->VolumeTotal;
 
     std::string qStr = writer.write(data);
     _rdsLocal->push("Q_TRADE", qStr); // 记录本地数据
@@ -240,6 +245,8 @@ void TradeSrv::OnRtnTrade(CThostFtdcTradeField *pTrade)
     _logger->push("tradeID", string(pTrade->TradeID));
     _logger->push("tradeDate", string(pTrade->TradeDate));
     _logger->push("tradeTime", string(pTrade->TradeTime));
+    _logger->push("ExchangeID", string(pTrade->ExchangeID));
+    _logger->push("Volume", Lib::itos(pTrade->Volume));
     _logger->info("TradeSrv[OnRtnTrade]");
 
     Json::Value data;
@@ -251,12 +258,14 @@ void TradeSrv::OnRtnTrade(CThostFtdcTradeField *pTrade)
     _rspMsg(info.appKey, CODE_SUCCESS, "成功", &data);
 
     string time = Lib::getDate("%Y/%m/%d-%H:%M:%S", true);
+    data["appKey"] = info.appKey;
     data["orderRef"] = pTrade->OrderRef;
     data["frontID"] = _frontID;
     data["sessionID"] = _sessionID;
     data["tradeDate"] = pTrade->TradeDate;
     data["tradeTime"] = pTrade->TradeTime;
     data["localTime"] = time;
+    data["successVol"] = pTrade->Volume;
 
     Json::FastWriter writer;
     std::string qStr = writer.write(data);
@@ -335,6 +344,7 @@ void TradeSrv::_onCancel(CThostFtdcOrderField *pOrder)
     data["localTime"] = time;
     data["orderStatus"] = pOrder->OrderStatus;
     data["currentTick"] = _rdsLocal->get("CURRENT_TICK_" + string(pOrder->InstrumentID));
+    data["cancelVol"] = pOrder->VolumeTotal;
 
     Json::FastWriter writer;
     std::string qStr = writer.write(data);
