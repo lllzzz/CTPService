@@ -1,0 +1,46 @@
+env = dev
+
+rds_host_online = 127.0.0.1
+rds_db_online = 1
+
+rds_host_dev = 127.0.0.1
+rds_db_dev = 2
+
+channel_tick = tick_
+channel_trade = trade
+channel_trade_rsp = trade_rsp_
+
+mysql_host_online = 127.0.0.1
+mysql_user_online = root
+mysql_passwd_online = 123
+mysql_name_tick_online = ctp_tick
+mysql_name_trade_online = ctp_trade_online
+
+mysql_host_dev = 127.0.0.1
+mysql_user_dev = root
+mysql_passwd_dev = 123
+mysql_name_trade_dev = ctp_trade_dev
+
+
+iids = sn1609/hc1610/rb1610/ni1609
+
+market_broker_id_online =
+market_user_id_online =
+market_password_online =
+market_front_online =
+
+trade_broker_id_online =
+trade_user_id_online =
+trade_password_online =
+trade_front_online =
+
+trade_broker_id_dev =
+trade_user_id_dev =
+trade_password_dev =
+trade_front_dev =
+
+root_path = /root/path/
+flow_path_t = /flow/trade/path/
+flow_path_m = /flow/market/path/
+log_path = /log/path/
+pid_path = /pid/file
