@@ -255,6 +255,7 @@ void TradeSrv::OnRtnTrade(CThostFtdcTradeField *pTrade)
     data["iid"] = pTrade->InstrumentID;
     data["orderID"] = info.orderID;
     data["realPrice"] = pTrade->Price;
+    data["successVol"] = pTrade->Volume;
     _rspMsg(info.appKey, CODE_SUCCESS, "成功", &data);
 
     string time = Lib::getDate("%Y/%m/%d-%H:%M:%S", true);
@@ -331,6 +332,7 @@ void TradeSrv::_onCancel(CThostFtdcOrderField *pOrder)
     data["iid"] = pOrder->InstrumentID;
     data["orderID"] = info.orderID;
     data["price"] = pOrder->LimitPrice;
+    data["cancelVol"] = pOrder->VolumeTotal;
 
     _rspMsg(info.appKey, CODE_SUCCESS, "成功", &data);
 
