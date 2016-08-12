@@ -20,5 +20,4 @@ a.out
 ni_*
 test.sh
 pid
-build.sh
 *.pyc
