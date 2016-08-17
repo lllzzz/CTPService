@@ -12,7 +12,7 @@ from Trade import Trade
 
 if len(sys.argv) == 1:
     print '''启动/停止系统：./ctpService start/stop
-启动/停止队列：./ctpService q start/stop
+启动/停止队列：./ctpService startQ/stopQ
 查看状态：./ctpService status'''
     sys.exit()
 
@@ -29,9 +29,7 @@ elif cmd == 'stop':
     trade.stop()
 elif cmd == 'status':
     os.system('./find.sh')
-elif cmd == 'q':
-    subcmd = sys.argv[2]
-    if (subcmd == 'start'):
-        os.system('./startQ.sh')
-    elif (subcmd == 'stop'):
-        os.system('./stopQ.sh')
+elif cmd == 'startQ':
+    os.system('./startQ.sh')
+elif cmd == 'stopQ':
+    os.system('./stopQ.sh')
