@@ -1,8 +1,14 @@
+55 8 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./startQ.sh
 59 8 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService start
 31 11 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService stop
+0 13 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./stopQ.sh
 
+25 13 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./startQ.sh
 29 13 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService start
 1 15 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService stop
+30 16 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./stopQ.sh
 
+55 20 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./startQ.sh
 59 20 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService start
 31 2 * * 2-6 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService stop
+0 4 * * 2-6 cd /home/dev/src/ctp/CTPService/bin/ && ./stopQ.sh
