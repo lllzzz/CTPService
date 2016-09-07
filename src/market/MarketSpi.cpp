@@ -7,13 +7,14 @@ MarketSpi::MarketSpi(CThostFtdcMdApi * mdApi)
     _mdApi = mdApi;
     _logger = new Logger("market");
 
-    _userID = C::get("market_user_id_online");
-    _password = C::get("market_password_online");
-    _brokerID = C::get("market_broker_id_online");
+    string env = C::get("env");
+
+    _userID = C::get("market_user_id_" + env);
+    _password = C::get("market_password_" + env);
+    _brokerID = C::get("market_broker_id_" + env);
     _iIDs = Lib::split(C::get("iids"), "/");
     _channel = C::get("channel_tick");
 
-    string env = C::get("env");
     int db = Lib::stoi(C::get("rds_db_" + env));
     string host = C::get("rds_host_" + env);
     _rds = new Redis(host, 6379, db);

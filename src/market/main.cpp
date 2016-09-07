@@ -23,8 +23,9 @@ int main(int argc, char const *argv[])
     pid.close();
 
     // 初始化交易接口
+    string env = C::get("env");
     string flowPath = C::get("flow_path_m");
-    string mURL = C::get("market_front_online");
+    string mURL = C::get("market_front_" + env);
     mApi = CThostFtdcMdApi::CreateFtdcMdApi(flowPath.c_str());
     MarketSpi mSpi(mApi); // 初始化回调实例
     mApi->RegisterSpi(&mSpi);

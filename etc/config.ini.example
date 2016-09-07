@@ -13,12 +13,13 @@ channel_trade_rsp = trade_rsp_
 mysql_host_online = 127.0.0.1
 mysql_user_online = root
 mysql_passwd_online = 123
-mysql_name_tick_online = ctp_tick
+mysql_name_tick_online = ctp_tick_online
 mysql_name_trade_online = ctp_trade_online
 
 mysql_host_dev = 127.0.0.1
 mysql_user_dev = root
 mysql_passwd_dev = 123
+mysql_name_tick_dev = ctp_tick_dev
 mysql_name_trade_dev = ctp_trade_dev
 
 
@@ -28,6 +29,11 @@ market_broker_id_online =
 market_user_id_online =
 market_password_online =
 market_front_online =
+
+market_broker_id_dev =
+market_user_id_dev =
+market_password_dev =
+market_front_dev =
 
 trade_broker_id_online =
 trade_user_id_online =

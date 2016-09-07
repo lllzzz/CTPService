@@ -12,19 +12,21 @@ class DB():
     def __init__(self, type):
 
         env = C.get('env')
-        host = C.get('mysql_host_online')
-        user = C.get('mysql_user_online')
-        passwd = C.get('mysql_passwd_online')
 
-        if (type == DB.TYPE_TICK):
-            name = C.get('mysql_name_tick_online')
-        elif (type == DB.TYPE_TRADE and env == 'online'):
-            name = C.get('mysql_name_trade_online')
-        elif (type == DB.TYPE_TRADE and env == 'dev'):
+        if env == 'online':
+            host = C.get('mysql_host_online')
+            user = C.get('mysql_user_online')
+            passwd = C.get('mysql_passwd_online')
+        else:
             host = C.get('mysql_host_dev')
             user = C.get('mysql_user_dev')
             passwd = C.get('mysql_passwd_dev')
-            name = C.get('mysql_name_trade_dev')
+
+
+        if type == DB.TYPE_TICK:
+            name = C.get('mysql_name_tick_' + env)
+        else:
+            name = C.get('mysql_name_trade_' + env)
 
         self.db = MySQLdb.connect(
             host = host,
@@ -34,7 +36,6 @@ class DB():
             db = name,
             charset='utf8')
         self.cursor = self.db.cursor()
-
 
     def getAll(self, sql):
         self.cursor.execute(sql)

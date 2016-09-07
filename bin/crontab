@@ -1,0 +1,8 @@
+59 8 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService start
+31 11 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService stop
+
+29 13 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService start
+1 15 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService stop
+
+59 20 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService start
+31 2 * * 2-6 cd /home/dev/src/ctp/CTPService/bin/ && ./CTPService stop
