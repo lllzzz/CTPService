@@ -1,25 +1,105 @@
-# ctpService
+# CTPService
 
-系统分为MarketService与TradeService两个部分。
+系统分为MarketService（MS）与TradeService（TS）两个部分。
 
-ms部分负责tick的收集，分发与存储，是对ctp接口的封装，分发依赖redis的消息订阅，第三方模型通过订阅频道来获取tick数据，从而进行下单，存储部分通过异步队列，将tick保存在数据库中。
+MS部分负责行情数据（tick）的收集，分发与存储，是对ctp接口的封装。分发依赖redis的消息订阅，第三方模型通过订阅频道来获取tick数据，从而进行下单。存储部分通过异步队列，将tick保存在数据库中。
 
-ts部分作为交易中心，负责交易指令的发送，与订单状态的保存，与ms相同，ts作为服务，通过redis监听固定频道来进行交易处理，落地采用异步队列形式。
+TS部分作为交易中心，负责交易指令的发送，与订单状态的保存，与MS相同，TS作为服务，通过redis监听固定频道来进行交易处理，落地采用异步队列形式。
 
-###  服务说明：
+###启动说明
+启动命令均在bin目录下
 
-首先需要 cd bin/ 下对代码进行编译，直接执行 ./build.sh 即可，此时会有markerSrv与tradeSrv两个可执行文件，然后可以执行如下命令启动服务。
+***./ctpService start/stop*** 该命令启动/停止MS与TS服务
 
-./ctpService start启动服务，配置文件位于etc/config.ini。
+***./ctpService startQ/stopQ*** 该命令启动/停止消费队列，包括MS与TS
 
-停止服务命令./ctpService stop。
+***./ctpService status*** 查看服务情况
 
-查看状态./ctpService status（其实就是ps）。
+***./check.py*** 检查python依赖的包是否已经安装
 
-启动队列./ctpService q start。停止队列./ctpService q stop。
+另外crontab文件中的命令，可以直接copy到系统crontab中，从而定时启动任务
 
-启动服务的时候会自动建表，消息队列需要单独启动。ctpService为src目录下ctpService.py的软连接，负责服务的调度。
+###配置说明
+配置文件位于etc目录下。
+
+env为环境配置，当前仅支持dev与online，及开发与线上环境。
+
+####Redis
+对于Redis，用于本地储存的队列以及一些系统内的数据共享，直接选择了db = 1，不可配置，对于与其他系统的交互，包括tick的传输与交易信号的传输，提供了分环境的配置项，建议不要与使用db = 1
+
+频道配置channel_tick为tick信号的广播频道，配置格式为 ***tick_合约ID***，channel_trade为订阅的订单频道，其他系统通过该频道广播下单信息，格式 ***trade***，配置channel_trade_rsp为下单信息反馈的广播频道，第三方系统下单之后，可以通过订阅该频道接收下单的回馈，格式为***trade_rsp_appkey*** 其中appkey为第三方系统的标示。
+
+####Mysql
+根据环境分别配置即可。
+
+####CTP相关配置
+配置虚拟盘与实盘的相关登录信息，系统根据env进行自动获取
+
+####iids
+需要收集行情的合约配置，多个用 **/** 分割
+
+####path
+路径相关的配置
 
 
-###  工具：
-tools目录下提供工具，./ioc_close.py为强平工具，使用方法./ioc_close env appKey orderID iid
+###交互格式
+第三方系统通过订阅或者发布信息到指定频道，与本系统进行交互，交互格式均为Json格式，以下做出样例。
+
+####MS tick数据格式
+
+    {
+        iid: 'hc1701', //合约ID
+        price: 1892, // 最新价
+        vol: 1002, // 成交量
+        time: 20160809_10:20:54, // CTP服务端返回时间
+        msec: 500, // 当前毫秒
+        bid1: 1892,
+        bidvol1: 1000,
+        ask1: 1892,
+        askvol1: 1000,
+    }
+
+####TS 监听格式
+
+    {
+        action: 'trade', // trade下单，cancel撤单
+        appKey: 100, // 整型，第三方服务id
+        orderID: 100, // 整型，第三方服务提供的下单ID，用于标示下单或撤单
+        // 以下参数均为action为trade时需要
+        iid: 'hc1701',
+        type: 1, // 下单类型，0：普通单，1：FAK，2：IOC，3：FOK（慎用，有的交易所不支持）
+        price: 1890, //double，下单价
+        total: 1, // 下几手
+        isBuy: 1, // 是否买 1/0
+        isOpen: 1, // 是否开仓 1/0
+    }
+
+####TS 返回格式
+
+    {
+        err: 0, // 非零失败
+        msg: 'hahah', // 错误信息
+        data: obj // 成功时返回信息
+    }
+
+##### 成功信息
+
+    // 下单反馈
+    {
+        type: 'traded',
+        iid: 'hc1701',
+        orderID: 100,
+        realPrice: 1000, // 实际成交金额
+        successVol: 2, // 成功交易几手
+    }
+
+    // 撤单反馈
+    {
+        type: 'canceled',
+        iid: 'hc1701',
+        orderID: 100,
+        price: 10000, // 当前最新价
+        cancelVol: 3， // 撤单笔数
+    }
+
+
