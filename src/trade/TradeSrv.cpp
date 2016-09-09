@@ -618,3 +618,41 @@ TradeSrv::~TradeSrv()
     _tApi = NULL;
     _logger->info("TradeSrv[~]");
 }
+
+
+
+void TradeSrv::qryCommissionRate(int appKey, string iid)
+{
+    // 查询合约
+    CThostFtdcQryInstrumentCommissionRateField req = {0};
+    strcpy(req.BrokerID, Lib::stoc(_brokerID));
+    strcpy(req.InvestorID, Lib::stoc(_userID));
+    strcpy(req.InstrumentID, iid.c_str());
+
+    int res = _tApi->ReqQryInstrumentCommissionRate(&req, _reqID);
+    _qryReq2App[_reqID] = appKey;
+    _logger->request("TradeSrv[ReqQryInstrumentCommissionRate]", _reqID++, res);
+}
+
+void TradeSrv::OnRspQryInstrumentCommissionRate(CThostFtdcInstrumentCommissionRateField *pInstrumentCommissionRate,
+    CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+{
+    if (pRspInfo && pRspInfo->ErrorID != 0) {
+        _logger->error("TradeSrv[OnRspQryInstrumentCommissionRate]", pRspInfo, nRequestID, bIsLast);
+        return;
+    }
+
+    int appKey = _qryReq2App[nRequestID];
+
+    Json::Value data;
+
+    data["type"] = "rate";
+    data["iid"] = pInstrumentCommissionRate->InstrumentID;
+    data["openByMoney"] = pInstrumentCommissionRate->OpenRatioByMoney;
+    data["openByVol"] = pInstrumentCommissionRate->OpenRatioByVolume;
+    data["closeByMoney"] = pInstrumentCommissionRate->CloseRatioByMoney;
+    data["closeByVol"] = pInstrumentCommissionRate->CloseRatioByVolume;
+    data["closeTodayByMoney"] = pInstrumentCommissionRate->CloseTodayRatioByMoney;
+    data["closeTodayByVol"] = pInstrumentCommissionRate->CloseTodayRatioByVolume;
+    _rspMsg(appKey, CODE_SUCCESS, "成功", &data);
+}

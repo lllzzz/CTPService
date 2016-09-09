@@ -123,3 +123,17 @@ class Trade():
             ) ENGINE=InnoDB CHARSET=utf8;'''
         self._db.insert(sql)
 
+        sql = '''
+            CREATE TABLE IF NOT EXISTS `rate` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `iid` varchar(50) NOT NULL DEFAULT '',
+                `open_by_money` decimal(10,2) NOT NULL DEFAULT '0.00',
+                `open_by_vol` decimal(10,2) NOT NULL DEFAULT '0.00',
+                `close_by_money` decimal(10,2) NOT NULL DEFAULT '0.00',
+                `close_by_vol` decimal(10,2) NOT NULL DEFAULT '0.00',
+                `close_today_by_money` decimal(10,2) NOT NULL DEFAULT '0.00',
+                `close_today_by_vol` decimal(10,2) NOT NULL DEFAULT '0.00',
+                `mtime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB CHARSET=utf8;'''
+        self._db.insert(sql)

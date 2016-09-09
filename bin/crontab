@@ -12,3 +12,8 @@
 59 20 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./ctpService start
 31 2 * * 2-6 cd /home/dev/src/ctp/CTPService/bin/ && ./ctpService stop
 0 4 * * 2-6 cd /home/dev/src/ctp/CTPService/bin/ && ./stopQ.sh
+
+# 获取手续费定时脚本
+5 9 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./cron/qryRate.py
+35 13 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./cron/qryRate.py
+5 21 * * 1-5 cd /home/dev/src/ctp/CTPService/bin/ && ./cron/qryRate.py

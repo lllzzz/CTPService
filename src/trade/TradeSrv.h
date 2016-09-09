@@ -50,6 +50,9 @@ private:
     // 通知结果的频道
     string _channelRsp;
 
+    // 查询用appKey查询Map
+    std::map<int, int> _qryReq2App;
+
     // 构造订单
     CThostFtdcInputOrderField _createOrder(string, bool, int, double,
         TThostFtdcOffsetFlagEnType, // 开平标志
@@ -92,8 +95,8 @@ public:
     void OnRtnTrade(CThostFtdcTradeField *pTrade);
 
     // // 手续费查询
-    // void qryCommissionRate(); // ReqQryInstrumentCommissionRate
-    // void OnRspQryInstrumentCommissionRate(CThostFtdcInstrumentCommissionRateField *pInstrumentCommissionRate, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};
+    void qryCommissionRate(int, string); // ReqQryInstrumentCommissionRate
+    void OnRspQryInstrumentCommissionRate(CThostFtdcInstrumentCommissionRateField *pInstrumentCommissionRate, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
     // // 持仓查询
     // void qryPosition(); // ReqQryInvestorPosition

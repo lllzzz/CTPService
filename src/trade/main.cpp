@@ -55,9 +55,9 @@ bool action(string data)
         service->cancel(appKey, orderID);
     }
 
-    if (action == "getCharge") {
+    if (action == "qryRate") {
         string iid = root["iid"].asString();
-        // service->getCharge(iid);
+        service->qryCommissionRate(appKey, iid);
     }
 
     if (action == "getPosition") {
