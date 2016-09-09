@@ -4,7 +4,7 @@
 
 MS部分负责行情数据（tick）的收集，分发与存储，是对ctp接口的封装。分发依赖redis的消息订阅，第三方模型通过订阅频道来获取tick数据，从而进行下单。存储部分通过异步队列，将tick保存在数据库中。
 
-TS部分作为交易中心，负责交易指令的发送，与订单状态的保存，与MS相同，TS作为服务，通过redis监听固定频道来进行交易处理，落地采用异步队列形式。
+TS部分作为交易中心，负责交易指令的发送，与订单状态的保存，与MS相同，TS作为服务，通过redis监听固定频道来进行交易处理，落地采用异步队列形式。另外还提供一些查询命令。
 
 ###启动说明
 启动命令均在bin目录下
@@ -16,6 +16,8 @@ TS部分作为交易中心，负责交易指令的发送，与订单状态的保
 ***./ctpService status*** 查看服务情况
 
 ***./check.py*** 检查python依赖的包是否已经安装
+
+***./cron/qryRate.py*** 查询合约手续费，该命令在crontab中有设定
 
 另外crontab文件中的命令，可以直接copy到系统crontab中，从而定时启动任务
 
@@ -60,7 +62,7 @@ env为环境配置，当前仅支持dev与online，及开发与线上环境。
     }
 
 ####TS 监听格式
-
+    // 下单与撤单
     {
         action: 'trade', // trade下单，cancel撤单
         appKey: 100, // 整型，第三方服务id
@@ -72,6 +74,12 @@ env为环境配置，当前仅支持dev与online，及开发与线上环境。
         total: 1, // 下几手
         isBuy: 1, // 是否买 1/0
         isOpen: 1, // 是否开仓 1/0
+    }
+    // 查询合约手续费
+    {
+        action: 'qryRate',
+        appKey: 100,
+        iid: 'hc1701',
     }
 
 ####TS 返回格式
@@ -102,4 +110,15 @@ env为环境配置，当前仅支持dev与online，及开发与线上环境。
         cancelVol: 3， // 撤单笔数
     }
 
+    // 查询合约手续费
+    {
+        type: 'rate',
+        iid: 'hc1701',
+        openByMoney: 100,
+        openByVol: 100,
+        closeByMoney: 100,
+        closeByVol: 100,
+        closeTodayByMoney: 100,
+        closeTodayByVol: 100,
+    }
 
