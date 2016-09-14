@@ -22,13 +22,15 @@ market = Market()
 trade = Trade()
 
 if cmd == 'start':
-    trade.start()
-    market.start()
+    appKey = sys.argv[2]
+    trade.start(appKey)
+    market.start(appKey)
 elif cmd == 'stop':
     market.stop()
     trade.stop()
 elif cmd == 'status':
-    os.system('./find.sh')
+    appKey = sys.argv[2] if len(sys.argv) == 3 else ''
+    os.system('./find.sh %s' % appKey)
 elif cmd == 'startQ':
     os.system('./startQ.sh')
 elif cmd == 'stopQ':

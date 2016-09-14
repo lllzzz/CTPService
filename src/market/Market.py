@@ -19,12 +19,12 @@ class Market():
         self._db = DB(DB.TYPE_TICK)
         pass
 
-    def start(self):
+    def start(self, appKey):
         iids = C.get('iids').split('/')
         for iid in iids:
             id = re.sub(r'([\d]+)', '', iid)
             self.__initDB(iid)
-        os.system('./marketSrv &')
+        os.system('./marketSrv %s &' % (appKey))
         pass
 
     def stop(self):

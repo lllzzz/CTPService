@@ -25,9 +25,9 @@ class Trade():
         self._db = DB(DB.TYPE_TRADE)
         pass
 
-    def start(self):
+    def start(self, appKey):
         self.__initDB()
-        os.system('./tradeSrv &')
+        os.system('./tradeSrv %s &' % (appKey))
         pass
 
     def stop(self):
