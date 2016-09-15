@@ -24,7 +24,7 @@ class Market():
         for iid in iids:
             id = re.sub(r'([\d]+)', '', iid)
             self.__initDB(iid)
-        os.system('./marketSrv %s &' % (appKey))
+        os.popen('./marketSrv %s &' % (appKey))
         pass
 
     def stop(self):
