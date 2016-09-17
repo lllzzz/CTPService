@@ -32,12 +32,13 @@ def send():
         'appKey': appKey,
         'iid': iid,
     }
-    print sendData
     sender.publish(sendCh, JSON.encode(sendData))
 
 def process(channel, data):
-    print data
     if data['err'] > 0: return
+    if data['err'] == -1: # 网络不通
+        srv.stop()
+        return
     data = data['data']
     sql = '''
         INSERT INTO `rate` (`iid`, `open_by_money`, `open_by_vol`, `close_by_money`,

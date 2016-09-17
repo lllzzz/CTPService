@@ -142,6 +142,9 @@ void TradeSrv::trade(int appKey, int orderID, string iid, bool isOpen, bool isBu
         int res = _tApi->ReqOrderInsert(&order, _maxOrderRef);
         _logger->request("TradeSrv[ReqOrderInsert]", _maxOrderRef, res);
         if (res == 0) break;
+        if (tryTimes == 0 && res < 0) {
+            _rspMsg(appKey, res, "发送订单失败");
+        }
     }
 
     Json::FastWriter writer;
@@ -309,6 +312,9 @@ void TradeSrv::cancel(int appKey, int orderID)
         int res = _tApi->ReqOrderAction(&req, info.orderRef);
         _logger->request("TradeSrv[cancel]", info.orderRef, res);
         if (res == 0) break;
+        if (tryTimes == 0 && res < 0) {
+            _rspMsg(appKey, res, "订单撤销失败");
+        }
     }
 }
 
@@ -632,6 +638,9 @@ void TradeSrv::qryCommissionRate(int appKey, string iid)
     int res = _tApi->ReqQryInstrumentCommissionRate(&req, _reqID);
     _qryReq2App[_reqID] = appKey;
     _logger->request("TradeSrv[ReqQryInstrumentCommissionRate]", _reqID++, res);
+    if (res < 0) {
+        _rspMsg(appKey, res, "请求失败");
+    }
 }
 
 void TradeSrv::OnRspQryInstrumentCommissionRate(CThostFtdcInstrumentCommissionRateField *pInstrumentCommissionRate,
