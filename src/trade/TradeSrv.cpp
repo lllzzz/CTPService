@@ -665,3 +665,60 @@ void TradeSrv::OnRspQryInstrumentCommissionRate(CThostFtdcInstrumentCommissionRa
     data["closeTodayByVol"] = pInstrumentCommissionRate->CloseTodayRatioByVolume;
     _rspMsg(appKey, CODE_SUCCESS, "成功", &data);
 }
+
+
+void TradeSrv::qryPosition(int appKey, string iid)
+{
+    // 查询合约
+    CThostFtdcQryInvestorPositionField req = {0};
+    strcpy(req.BrokerID, Lib::stoc(_brokerID));
+    strcpy(req.InvestorID, Lib::stoc(_userID));
+    strcpy(req.InstrumentID, iid.c_str());
+
+    int res = _tApi->ReqQryInvestorPosition(&req, _reqID);
+    _qryReq2App[_reqID] = appKey;
+    _logger->request("TradeSrv[ReqQryInvestorPosition]", _reqID++, res);
+    if (res < 0) {
+        _rspMsg(appKey, res, "请求失败");
+    }
+}
+
+void TradeSrv::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition,
+    CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+{
+    if (pRspInfo && pRspInfo->ErrorID != 0) {
+        _logger->error("TradeSrv[OnRspQryInvestorPosition]", pRspInfo, nRequestID, bIsLast);
+        return;
+    }
+
+    int appKey = _qryReq2App[nRequestID];
+
+    Json::Value data;
+
+    std::string direct = "";
+    switch (pInvestorPosition->PosiDirection) {
+        case THOST_FTDC_PD_Net:
+            direct = "none";
+            break;
+        case THOST_FTDC_PD_Long:
+            direct = "buy";
+            break;
+        case THOST_FTDC_PD_Short:
+            direct = "sell";
+            break;
+        default:
+            break;
+    }
+
+    data["type"] = "position";
+    data["isLast"] = bIsLast;
+    data["iid"] = pInvestorPosition->InstrumentID;
+    data["direction"] = direct;
+    data["pos"] = pInvestorPosition->Position;
+    data["tPos"] = pInvestorPosition->TodayPosition;
+    data["openVol"] = pInvestorPosition->OpenVolume;
+    data["closeVol"] = pInvestorPosition->CloseVolume;
+    data["openAmnt"] = pInvestorPosition->OpenAmount;
+    data["closeAmnt"] = pInvestorPosition->CloseAmount;
+    _rspMsg(appKey, CODE_SUCCESS, "成功", &data);
+}

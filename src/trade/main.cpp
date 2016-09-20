@@ -60,9 +60,9 @@ bool action(string data)
         service->qryCommissionRate(appKey, iid);
     }
 
-    if (action == "getPosition") {
+    if (action == "qryPosition") {
         string iid = root["iid"].asString();
-        // service->getPosition(iid);
+        service->qryPosition(appKey, iid);
     }
 
     return true;
