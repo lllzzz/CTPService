@@ -13,11 +13,12 @@ from Logger import Logger
 
 class Q():
     """消化队列"""
-    def __init__(self, key, obj):
+    def __init__(self, key, obj, needLog = False):
         self.key = key
         self.obj = obj
         self.rds = Redis(host = '127.0.0.1', port = 6379, db = 1)
         self.logger = Logger()
+        self.needLog = needLog
 
     def run(self):
         while True:
@@ -25,6 +26,7 @@ class Q():
             if data:
                 try:
                     dataObj = JSON.decode(data)
+                    if self.needLog: self.logger.write('q', Logger.INFO, 'Q[run]', dataObj)
                     self.obj.processQ(dataObj)
                 except e:
                     self.logger.write('q', Logger.INFO, 'Q[exceptData]', {'data': data})

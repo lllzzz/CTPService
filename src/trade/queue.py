@@ -9,5 +9,5 @@ from Trade import Trade
 from Q import Q
 
 trade = Trade()
-queue = Q('Q_TRADE', trade)
+queue = Q('Q_TRADE', trade, True)
 queue.run()
