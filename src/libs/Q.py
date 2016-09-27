@@ -28,7 +28,7 @@ class Q():
                     dataObj = JSON.decode(data)
                     if self.needLog: self.logger.write('q', Logger.INFO, 'Q[run]', dataObj)
                     self.obj.processQ(dataObj)
-                except e:
+                except Exception, e:
                     self.logger.write('q', Logger.INFO, 'Q[exceptData]', {'data': data})
                     self.logger.write('q', Logger.INFO, 'Q[error]', {'error': e})
             else:
