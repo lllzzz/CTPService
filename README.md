@@ -9,11 +9,11 @@ TS部分作为交易中心，负责交易指令的发送，与订单状态的保
 ###启动说明
 启动命令均在bin目录下
 
-***./ctpService start/stop*** 该命令启动/停止MS与TS服务
+***./ctpService start/stop default*** 该命令启动/停止MS与TS服务
 
-***./ctpService startQ/stopQ*** 该命令启动/停止消费队列，包括MS与TS
+***./ctpService startQ/stopQ default*** 该命令启动/停止消费队列，包括MS与TS
 
-***./ctpService status*** 查看服务情况
+***./ctpService status default*** 查看服务情况
 
 ***./check.py*** 检查python依赖的包是否已经安装
 
